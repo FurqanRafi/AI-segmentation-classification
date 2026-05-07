@@ -1,9 +1,12 @@
 import logging
+import os
 from fastapi import FastAPI
 from pydantic import BaseModel
 # pyrefly: ignore [missing-import]
 from transformers import pipeline
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -47,6 +50,17 @@ def analyze_sentiment(request: SentimentRequest):
             "error": str(e)
         }
 
+# Mount Frontend Static Files if they exist
+frontend_dist = os.path.join(os.path.dirname(os.path.dirname(__file__)), "frontend", "dist")
+
+if os.path.exists(frontend_dist):
+    app.mount("/assets", StaticFiles(directory=os.path.join(frontend_dist, "assets")), name="assets")
+    
+    @app.get("/{catchall:path}")
+    def serve_react_app(catchall: str):
+        return FileResponse(os.path.join(frontend_dist, "index.html"))
+
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+    # Hugging Face Spaces runs on port 7860
+    uvicorn.run("main:app", host="0.0.0.0", port=7860, reload=True)
